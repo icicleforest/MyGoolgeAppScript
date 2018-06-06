@@ -51,13 +51,13 @@ var Md5CheckSum = function(message) {
   }
     
   // パディング
-  var bitlenOriginal = bytesMessage.length << 3; // メッセージ長
+  var bitlenOriginal = bytesMessage.length * 8; // メッセージ長
   var bitlenOriginalL64bit = Math.floor(bitlenOriginal % Math.pow(2, 64)); // メッセージ長の下位64bit
   var bitlenPadding = (448 - (bitlenOriginal % 512)); // パディング長
-  if(bitlenPadding < 0) {
+  if(bitlenPadding <= 0) {
     bitlenPadding += 512;
   }
-  var bytelenPadding = bitlenPadding >>> 3;
+  var bytelenPadding = Math.floor(bitlenPadding / 8);
   for(var i = 0; i < bytelenPadding; ++i) {
     if(i == 0) {
       bytesMessage.push(0x80);
@@ -217,19 +217,34 @@ function Md5CheckSum_test() {
     {
       "original_data": [31, -117, 8, 0, 0, 0, 0, 0, 0, 0, 51, 48, -64, 9, 0, -68, 16, 103, -127, 27, 0, 0, 0],
       "expected_result": "999fa5ae3eb28df85f514649b70416b8"
+    },
+    {
+      "original_data": function() {
+        var file = null;
+        var iter = DriveApp.getFilesByName("wrong-long-file.gz");
+        if(iter.hasNext()) {
+          file = iter.next();
+        }
+        return file.getBlob().getBytes();
+      },
+      "expected_result": "ec887673d5356f576d366f6114f3a86b"
     }
   ];
   
   for(var i = 0; i < testcases.length; ++i) {
     var input = testcases[i]["original_data"];
+    if(typeof(input) === "function") {
+      input = input();
+    }
+    
     var result = testcases[i]["expected_result"];
     var output = new Md5CheckSum(input);
     var resultByGoogle = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, input, Utilities.Charset.UTF_8));
     
     Logger.log("TEST: " + input);
-    Logger.log("RESULT1: " + output.getHexString() + " <> " + result +  " (" + (result == output.getHexString()) + ")");
+    Logger.log("RESULT1: " + output.getHexString() + " == " + result +  " (" + (result == output.getHexString()) + ")");
     if(typeof(input) === "string") {
-      Logger.log("RESULT2: " + output.getBase64String() + " <> " + resultByGoogle + " ( " + (resultByGoogle == output.getBase64String()) + ")");
+      Logger.log("RESULT2: " + output.getBase64String() + " == " + resultByGoogle + " ( " + (resultByGoogle == output.getBase64String()) + ")");
     }
     Logger.log(output.getBase64String() + " <= " + output.getBytes());
     Logger.log("");
